@@ -374,16 +374,20 @@ class AwsCognitoIdentityGuard implements StatefulGuard
         ) {
             return new AuthAttempt(false);
         }
+        $request = [
+            'AuthFlow' => 'ADMIN_NO_SRP_AUTH',
+            'AuthParameters' => [
+                'USERNAME' => $username,
+                'PASSWORD' => $password,
+            ],
+            'ClientId' => $this->getDefaultAppConfig()['client-id'],
+            'UserPoolId' => $this->config['pool-id'],
+        ];
+        if (!empty($this->getDefaultAppConfig()['client-secret'])) {
+            $request['AuthParameters']['SECRET_HASH'] = $this->getDefaultAppConfig()['client-secret'];
+        }
         try {
-            $response = $this->client->adminInitiateAuth([
-                'AuthFlow' => 'ADMIN_NO_SRP_AUTH',
-                'AuthParameters' => [
-                    'USERNAME' => $username,
-                    'PASSWORD' => $password,
-                ],
-                'ClientId' => $this->getDefaultAppConfig()['client-id'],
-                'UserPoolId' => $this->config['pool-id'],
-            ]);
+            $response = $this->client->adminInitiateAuth($request);
             return new AuthAttempt(!!$response['AuthenticationResult'], $response->toArray());
         } catch (CognitoIdentityProviderException $e) {
             return new AuthAttempt(false, ['exception' => $e]);

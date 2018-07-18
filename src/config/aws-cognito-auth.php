@@ -27,14 +27,13 @@ return [
         'handler' => null,
     ],
 
-
     /*
     |--------------------------------------------------------------------------
-    | User Pool Username
+    | User Attributes
     |--------------------------------------------------------------------------
     |
-    | This is the attribute on your User model that corresponds to the user's
-    | username in your User Pool.
+    | This is the list of attributes that are present on your cognito users
+    | which you want to map to the laravel user.
     |
     */
 
@@ -70,6 +69,7 @@ return [
         'default' => [
             'client-id' => env('AWS_COGNITO_IDENTITY_APP_CLIENT_ID', ''),
             'refresh-token-expiration' => 30,
+            'client-secret' => env('AWS_COGNITO_IDENTITY_APP_CLIENT_SECRET', ''),
         ],
 
     ],
