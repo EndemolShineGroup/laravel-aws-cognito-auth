@@ -8,7 +8,7 @@ use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
-use Ramsey\Uuid;
+use Ramsey\Uuid\Uuid;
 
 class CognitoRegisterController extends Controller
 {
@@ -53,12 +53,12 @@ class CognitoRegisterController extends Controller
             ]);
         }
         $username = $request->input('username');
-        if (!$username == null) {
-            $username = Uuid::uuid4();
+        if ($username == null) {
+            $username = $request->input('email');
         }
         $result = Auth::register($username, $request->input('password'), $userAttributes);
         if ($result->successful()) {
-            session()->flash('username', $request->input('username'));
+            session()->flash('username', $username);
             session()->flash('verifyMethod', $result->getResponse()['CodeDeliveryDetails']['DeliveryMedium']);
             return redirect()->route( 'verification' );
         } else {
