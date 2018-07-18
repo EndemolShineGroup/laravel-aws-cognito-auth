@@ -202,15 +202,19 @@ class AwsCognitoIdentityGuard implements StatefulGuard
      */
     protected function refreshCognitoTokens($refreshToken)
     {
+        $request = [
+            'AuthFlow' => 'REFRESH_TOKEN_AUTH',
+            'AuthParameters' => [
+                'REFRESH_TOKEN' => $refreshToken,
+            ],
+            'ClientId' => $this->getDefaultAppConfig()['client-id'],
+            'UserPoolId' => $this->config['pool-id'],
+        ];
+        if ($secretHash = $this->getSecretHash($this->user()->username)) {
+            $request['AuthParameters']['SECRET_HASH'] = $secretHash;
+        }
         try {
-            $response = $this->client->adminInitiateAuth([
-                'AuthFlow' => 'REFRESH_TOKEN_AUTH',
-                'AuthParameters' => [
-                    'REFRESH_TOKEN' => $refreshToken,
-                ],
-                'ClientId' => $this->getDefaultAppConfig()['client-id'],
-                'UserPoolId' => $this->config['pool-id'],
-            ]);
+            $response = $this->client->adminInitiateAuth($request);
         } catch (CognitoIdentityProviderException $e) {
             return null;
         }
@@ -383,9 +387,8 @@ class AwsCognitoIdentityGuard implements StatefulGuard
             'ClientId' => $this->getDefaultAppConfig()['client-id'],
             'UserPoolId' => $this->config['pool-id'],
         ];
-        if (!empty($this->getDefaultAppConfig()['client-secret'])) {
-            $secretHash = hash_hmac('sha256', $username.$this->getDefaultAppConfig()['client-id'], $this->getDefaultAppConfig()['client-secret'], true);
-            $request['AuthParameters']['SECRET_HASH'] = base64_encode($secretHash);
+        if ($secretHash = $this->getSecretHash($username)) {
+            $request['AuthParameters']['SECRET_HASH'] = $secretHash;
         }
         try {
             $response = $this->client->adminInitiateAuth($request);
@@ -395,6 +398,16 @@ class AwsCognitoIdentityGuard implements StatefulGuard
             return new AuthAttempt(false, ['exception' => $e]);
         }
     }
+
+    private function getSecretHash($username) {
+        if (!empty($this->getDefaultAppConfig()['client-secret'])) {
+            $data = $username.$this->getDefaultAppConfig()['client-id'];
+            $key = $this->getDefaultAppConfig()['client-secret'];
+            return base64_encode(hash_hmac('sha256', $data, $key, true));
+        }
+        return null;
+    }
+
     /**
      * Log the given user ID into the application.
      *
@@ -454,14 +467,17 @@ class AwsCognitoIdentityGuard implements StatefulGuard
 
     public function register(String $username, String $password, $userAttributes)
     {
+        $request = [
+            "UserAttributes" => $userAttributes,
+            "Password" => $password,
+            "ClientId" => $this->getDefaultAppConfig()['client-id'],
+            "Username" => $username
+        ];
+        if ($secretHash = $this->getSecretHash($username)) {
+            $request['SecretHash'] = $secretHash;
+        }
         try {
-            $response = $this->client->signUp([
-                "UserAttributes" => $userAttributes,
-                "Password" => $password,
-                "ClientId" => $this->getDefaultAppConfig()['client-id'],
-                "Username" => $username
-            ]);
-            info($response);
+            $response = $this->client->signUp($request);
             if ($response['@metadata']['statusCode'] == '200') {
                 return new AuthAttempt(true, $response->toArray());
             };
@@ -473,12 +489,16 @@ class AwsCognitoIdentityGuard implements StatefulGuard
 
     public function verify(String $username, String $code)
     {
+        $request = [
+            "ConfirmationCode" => $code,
+            "ClientId" => $this->getDefaultAppConfig()['client-id'],
+            "Username" => $username
+        ];
+        if ($secretHash = $this->getSecretHash($username)) {
+            $request['SecretHash'] = $secretHash;
+        }
         try {
-            $response = $this->client->confirmSignUp([
-                "ConfirmationCode" => $code,
-                "ClientId" => $this->getDefaultAppConfig()['client-id'],
-                "Username" => $username
-            ]);
+            $response = $this->client->confirmSignUp($request);
             info($response);
             if ($response['@metadata']['statusCode'] == '200') {
                 return new AuthAttempt(true, $response->toArray());
