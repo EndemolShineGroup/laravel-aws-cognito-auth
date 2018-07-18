@@ -384,12 +384,14 @@ class AwsCognitoIdentityGuard implements StatefulGuard
             'UserPoolId' => $this->config['pool-id'],
         ];
         if (!empty($this->getDefaultAppConfig()['client-secret'])) {
-            $request['AuthParameters']['SECRET_HASH'] = $this->getDefaultAppConfig()['client-secret'];
+            $secretHash = hash_hmac('sha256', $username.$this->getDefaultAppConfig()['client-id'], $this->getDefaultAppConfig()['client-secret'], true);
+            $request['AuthParameters']['SECRET_HASH'] = base64_encode($secretHash);
         }
         try {
             $response = $this->client->adminInitiateAuth($request);
             return new AuthAttempt(!!$response['AuthenticationResult'], $response->toArray());
         } catch (CognitoIdentityProviderException $e) {
+            info($e);
             return new AuthAttempt(false, ['exception' => $e]);
         }
     }
