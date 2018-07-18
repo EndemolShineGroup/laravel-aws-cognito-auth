@@ -51,7 +51,11 @@ class CognitoRegisterController extends Controller
                 "Value" => $request->input($attribute)
             ]);
         }
-        $result = Auth::register($request->input('username'), $request->input('password'), $userAttributes);
+        $username = $request->input('username');
+        if (!$username == null) {
+            $username = Uuid::uuid4();
+        }
+        $result = Auth::register($username, $request->input('password'), $userAttributes);
         if ($result->successful()) {
             session()->flash('username', $request->input('username'));
             session()->flash('verifyMethod', $result->getResponse()['CodeDeliveryDetails']['DeliveryMedium']);
