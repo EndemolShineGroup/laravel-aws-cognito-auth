@@ -148,9 +148,10 @@ class AwsCognitoIdentityGuard implements StatefulGuard
         // request, and if one exists, attempt to retrieve the user using that.
         $user = null;
         if (!is_null($id) AND $user = $this->provider->retrieveById($id)) {
-            if (!$tokens = $this->getCognitoTokensFromSession()) {
+            if (!$tokens = $this->getCognitoTokensFromSession($user)) {
                 return null;
             }
+
             $this->fireAuthenticatedEvent($user);
         }
         return $this->user = $user;
@@ -161,7 +162,7 @@ class AwsCognitoIdentityGuard implements StatefulGuard
      *
      * @return null|array
      */
-    protected function getCognitoTokensFromSession()
+    protected function getCognitoTokensFromSession($user)
     {
         if ($this->cognitoTokens) {
             return $this->cognitoTokens;
@@ -182,7 +183,7 @@ class AwsCognitoIdentityGuard implements StatefulGuard
             }
             $refreshToken = $tokens['RefreshToken'];
             $refreshTokenExp = $tokens['RefreshTokenExpires'];
-            if (!$tokens = $this->refreshCognitoTokens($refreshToken)) {
+            if (!$tokens = $this->refreshCognitoTokens($refreshToken, $user)) {
                 $this->clearUserDataFromSession();
                 return null;
             }
@@ -200,7 +201,7 @@ class AwsCognitoIdentityGuard implements StatefulGuard
      * @param string $refreshToken
      * @return null|array
      */
-    protected function refreshCognitoTokens($refreshToken)
+    protected function refreshCognitoTokens($refreshToken, $user)
     {
         $request = [
             'AuthFlow' => 'REFRESH_TOKEN_AUTH',
@@ -210,7 +211,7 @@ class AwsCognitoIdentityGuard implements StatefulGuard
             'ClientId' => $this->getDefaultAppConfig()['client-id'],
             'UserPoolId' => $this->config['pool-id'],
         ];
-        if ($secretHash = $this->getSecretHash($this->user()->username)) {
+        if ($secretHash = $this->getSecretHash($user->username)) {
             $request['AuthParameters']['SECRET_HASH'] = $secretHash;
         }
         try {
